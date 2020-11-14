@@ -4,48 +4,62 @@
 #include <sys/types.h> 
 #include <unistd.h> 
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <semaphore.h>
 #define NB 10000
 #define RANGE 10
 
 void alea();
-int ACCES = 0;				/*COPIE FAITE A CHAQUE FORK INUTILISABLE TEL QUEL*/
+//int ACCES = 0;				/*COPIE FAITE A CHAQUE FORK INUTILISABLE TEL QUEL*/
 int RES[9000];
-int ITER;
+//int ITER;
 sem_t lock;
+static int *glob_var;
 
 int main(int argc, char const *argv[]) {
-	ITER = 0;
+	glob_var = mmap(NULL, sizeof *glob_var, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	int *ptr = mmap ( NULL, NB* sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, 0, 0 );
+
+	*glob_var = 0;
+	//ITER = 0;
 	int tabTemp[NB];
 	int *tabTab[10];
 	int fd[2];
-	pipe(fd);				/*Plus de pipe ?https://bytefreaks.net/programming-2/c-programming-2/cc-pass-value-from-parent-to-child-after-fork-via-a-pipe*/
+	pipe(fd);
 
 	if(sem_init(&lock,1,1) != 0) {
 		return -1;
 	}
-	write(fd[2], &ACCES, sizeof(ACCES));
+	//write(fd[2], &ACCES, sizeof(ACCES));
 	if ((/*fork()&&fork()&&fork()&&fork()&&fork()&&fork()&&fork()&&*/fork()&&fork()) != 0) {
 		close(fd[1]);
-		read(fd[2], &ACCES, sizeof(ACCES));
+		munmap(glob_var, sizeof *glob_var);
+		/*read(fd[2], &ACCES, sizeof(ACCES));
 		printf("Clé d'accès avant while: %d\n", ACCES);
-		while(ACCES =! 10){													/*Problème étrange avec la condition d'entrée*/
+		while(ACCES =! 10){
 			read(fd[2], &ACCES, sizeof(ACCES));
 			printf("Clé d'accès : %d\n", ACCES);
 			sleep(2);
 		}
 		printf("On continue\n");
-		printf("Clé d'accès ? : %d\n", ACCES);
+		printf("Clé d'accès ? : %d\n", ACCES);*/
+		while(*glob_var != 2){
+			printf("while %d\n", *glob_var);
+			munmap(glob_var, sizeof *glob_var);
+		}
+		printf("On continue\n");
 
-		for(int i = 0; i < 10; i++) {
-			tabTab[i] = (int*)read(fd[0], &tabTemp, sizeof(tabTemp));			/*Segmente*/
-		}
-		for(int i = 0; i < 10; i++) {
+		/*for(int i = 0; i < 10; i++) {
+			tabTab[i] = (int*)read(fd[0], &tabTemp, sizeof(tabTemp));			/*Segmente*//*
+		}*/
+
+		munmap(ptr, sizeof *ptr);
+		/*for(int i = 0; i < 10; i++) {
 			for (int j = 0; j< 10; j++){
-				printf("%d", *(tabTab[j] + i));									/*Affichage des tableaux a l'intérieur de tabTab mais pas sur des valeurs du for*/
+				printf("%d", *(tabTab[j] + i));									/*Affichage des tableaux a l'intérieur de tabTab mais pas sur des valeurs du for*//*
 			}
-		}
+		}*/
 		/*Début du truc pour savoir si c'est équilibré sa compte le nombre d'occurence des valeur dans RES et sa les affiche*/
 		int final[RANGE];
 		for(int i = 0; i < 9000; i++) {
@@ -57,21 +71,23 @@ int main(int argc, char const *argv[]) {
 
 		close(fd[0]);
 		close(fd[2]);
-	} else {																	/*revoir quelle valeur on met pour evoyer fd[truc]*/
+	} else {
 		srand(time(NULL));
-		for (int i = 0; i < NB; i++) {
-			tabTemp[i] = (rand() % RANGE) + 1;
-		}
+		
 		printf("fini\n");
-		read(fd[2], &ACCES, sizeof(ACCES));
-		ACCES++;
+		//read(fd[2], &ACCES, sizeof(ACCES));
+		//ACCES++;
+		*glob_var++;
 		while(sem_wait(&lock) != 0) {											/*Verouillage sémaphore*/
-			printf("ECHEC VEROUILLLAGE\n");
+			printf("ATTENTE LOCK\n");
 			wait(0);
 		}
 		printf("LOCK\n");
-		write(fd[2], &ACCES, sizeof(ACCES));
-		write(fd[1], &tabTemp, sizeof(tabTemp));
+		//write(fd[2], &ACCES, sizeof(ACCES));
+		//write(fd[1], &tabTemp, sizeof(tabTemp));
+		for (int i = 0; i < NB; i++) {
+			ptr[i] = (rand() % RANGE) + 1;
+		}
 		sem_post(&lock);														/*Déverouillage sémaphore*/
 		printf("UNLOCK\n");
 	}
