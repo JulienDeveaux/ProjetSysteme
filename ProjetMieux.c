@@ -27,39 +27,39 @@ int main(int argc, char const *argv[])
 	}
 
 
-
-
-	if ((fork()&&fork()&&fork()) != 0) {
+	if ((/*fork()&&fork()&&*/fork()&&fork()&&fork()) != 0) {
 		close(fd[1]);
 
 		while (read(fd[0], &valeur, sizeof(valeur)) != 0)
 			RES[valeur]++;
 
 		for(int i = 0; i < RANGE; i++) {
-			printf("%d\n", RES[i]);
+			printf("Case %d : %d\n", i, RES[i]);
 		}
 
-		/*calcul de la variance :*/
-		int tmp = 0;
-		for(int i = 0; i < RANGE; i++) {						/*Ok y a un problème arrête de piquer le code internet et cherche un peu*/
-			tmp += RES[i];
+		/*calcul de l'espérance :*/
+		int tmp[RANGE], moy, esp;
+		tmp[1] = 0;
+		for(int i = 0; i < RANGE; i++) {
+			tmp[1] += RES[i];
 		}
-		int moy = 0;
-		moy = tmp / RANGE;
-		int temp[RANGE];
-		printf("moyenne : %d\n", moy);
+		moy = tmp[1] / RANGE;
+		tmp[1] = 0;
+		printf("Moyenne = %d\n", moy);
 
 		for(int i = 0; i < RANGE; i++) {
-			temp[i] = RES[i] * RES[i];
+			tmp[i] = RES[i] / 1000;
+			printf("calcul : %d\n", (RES[i] / 1000));
 		}
-		int var = 0;
-		for(int i = 0; i < RANGE; i++) {
-			var += temp[i];
-		}
-		int res = 0;
-		res = var / RANGE - moy * moy;
-		printf("variance : %d\n", res);
 
+		for(int i = 0; i < RANGE; i++) {
+			printf("tmp[%d] : %d\n", i, tmp[i]);
+		}
+
+		for(int i = 0; i < RANGE; i++) {
+			esp += i * tmp[i];
+		}
+		printf("Espérance = %d\n", esp);
 		close(fd[0]);
 	}
 	else {
@@ -69,21 +69,19 @@ int main(int argc, char const *argv[])
 			printf("ATTENTE LOCK\n");
 			wait(0);
 		}
+		printf("\033[0;31m");
+		printf("LOCK\n");
+		printf("\033[0m");
 		for (int i = 0; i < NB; i++) {
 			valeur = (rand() % RANGE);
 			write(fd[1], &valeur, sizeof(valeur));
 		}
 		sem_post(&lock);
+		printf("\033[0;32m");
+		printf("UNLOCK\n");
+		printf("\033[0m");
 		close(fd[1]);
 
 	}
-	/*key_t keyTab;
-	int idSHMTAB    = shmget(keyTab  ,sizeof(int)*(RAND_MAX), IPC_CREAT | IPC_EXCL | 0666 );
-    int idSemaphore = semget( keyTab, 1, IPC_CREAT | IPC_EXCL | 0666 );
-	//...
-	char* pointeurSurTab = shmat(idSHMTAB, NULL, 0);
-	//...
-	int j = 0;
-	//pointeurSurTab[j] += "unTruc";*/
 	return 0;
 }
