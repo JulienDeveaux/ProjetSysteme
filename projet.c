@@ -10,6 +10,7 @@
 #define NB 10000
 #define RANGE 10
 
+
 void alea();
 //int ACCES = 0;				/*COPIE FAITE A CHAQUE FORK INUTILISABLE TEL QUEL*/
 int RES[9000];
@@ -114,3 +115,13 @@ int main(int argc, char const *argv[]) {
 	}
 	ACCES = 1;
 }*/
+
+
+/*
+idSHMTAB    = shmget(keyTab  ,sizeof(int)*(RAND_MAX), IPC_CREAT | IPC_EXCL | 0666 );
+    idSemaphore = semget( keyTab, 1, IPC_CREAT | IPC_EXCL | 0666 );
+//...
+pointeurSurTab = shmat(idSHMTAB, NULL, 0);
+//...
+pointeurSurTab[j] += "unTruc";
+*/
