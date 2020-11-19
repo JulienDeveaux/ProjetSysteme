@@ -1,6 +1,14 @@
 CC=gcc
-CXXFLAGS=-Wall -g -o2
-LDFLAGS=-pthread 
+CXXFLAGS=-Wall -O0
+LDFLAGS=-pthread
+
+start: start.o
+
+start.o: start.c
+
+ProjetIPC: ProjetIPC.o
+
+ProjetIPC.o: ProjetIPC.c
 
 ProjetMieux: ProjetMieux.o
 
