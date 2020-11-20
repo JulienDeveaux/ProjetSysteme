@@ -8,20 +8,20 @@
 #include <time.h>			/* time()					*/
 #include <unistd.h>			/* fork()					*/
 #include <sys/wait.h>		/* waitpid()				*/
-#define RANGE 10
+#define RANGE 1000000		/* max 1000000 				*/
 
 int main (int argc, char **argv){
-    int i;                        /*      loop variables          */
+    int i;                        /*      variable de boucle      */
     key_t shmkey;                 /*      shared memory key       */
     int shmid;                    /*      shared memory id        */
-    sem_t *sem;                   /*      synch semaphore         *//*shared */
+    sem_t *sem;                   /*      sync semaphore          *//*shared */
     pid_t pid;                    /*      fork pid                */
-    int *p;              		  /*      shared variable         *//*shared */
-    unsigned int n;               /*      fork count              */
-    unsigned int value;           /*      semaphore value         */
+    int *p;              		  /*      variable partagee       *//*shared */
+    unsigned int n;               /*      bombre de fork          */
+    unsigned int value;           /*      valeur semaphore        */
 
-    /* initialize a shared variable in shared memory */
-    shmkey = ftok ("/dev/null", 5);       /* valid directory name and a number */
+    /* initialise une variable partagee dans une shared memory */
+    shmkey = ftok ("/dev/null", 5);       /* chemin valide et un chiffre */
     printf ("shmkey pour p = %d\n", shmkey);
     shmid = shmget (shmkey, sizeof(int)*RANGE, IPC_CREAT | 0666);
     if (shmid < 0){                           /* shared memory error check */
@@ -29,113 +29,132 @@ int main (int argc, char **argv){
         exit (1);
     }
 
-    p = (int *)shmat (shmid, NULL, 0);   /* attach p to shared memory */
-    printf ("p=%d est en mémoire partagée.\n\n", *p);
+    p = (int *)shmat (shmid, NULL, 0);   /* raccord de p à la shared memory */
+    printf ("p est en mémoire partagée.\n\n");
 
     /********************************************************/
 
-    printf ("Combien de fork?\n");
+    printf ("Combien de fork ?\n");
     printf ("Forks: ");
     scanf ("%u", &n);
 
-    printf ("Quelle valeur Semaphore ?\n");
-    printf ("Valeur Semaphore: ");
-    scanf ("%u", &value);
+    /* initialisation des semaphores pour les shared processes */
+    sem = sem_open ("pSem", O_CREAT | O_EXCL, 0644, n); 
+    /* nom du semaphore "pSem" */
 
-    /* initialize semaphores for shared processes */
-    sem = sem_open ("pSem", O_CREAT | O_EXCL, 0644, value); 
-    /* name of semaphore is "pSem", semaphore is reached using this name */
-
-    printf ("semaphores initialisé(s)\n\n");
+    printf ("semaphore initialisé\n\n");
 
 
-    /* fork child processes */
+    /* fork des processes fils */
     for (i = 0; i < n; i++){
         pid = fork ();
         if (pid < 0) {
-        /* check for error      */
+        /* check si il y a des erreurs */
             sem_unlink ("pSem");   
             sem_close(sem);  
-            /* unlink prevents the semaphore existing forever */
-            /* if a crash occurs during the execution         */
+            /* unlink evite que le semaphore exit en boucle */
+            /* Si un crash arrive à l'execution             */
             printf ("Fork error.\n");
         }
         else if (pid == 0)
-            break;                  /* child processes */
+            break;                  /* processus fils */
     }
 
 
-    /******************************************************/
-    /******************   PARENT PROCESS   ****************/
-    /******************************************************/
-    if (pid != 0){
-        /* wait for all children to exit */
+    /*******************************************************/
+    /******************   PROCESSUS PARENT   ***************/
+    /*******************************************************/
+    if (pid != 0) {
+        /* on attend que les processus fils terminent tous */
         while (pid = waitpid (-1, NULL, 0)){
             if (errno == ECHILD)
                 break;
         }
 
         printf ("\nParent: Tous les enfants sont finis.\n");
+        printf("\033[1;32m");
+        printf ("\nTableau final :\n");
+        printf("\033[0m");
+        for(i = 0; i < RANGE; i++) {
+        	printf("Nombre d'occurence de %d : %d\n", i, p[i]);
+        }
+        int min, max;
+        min = 0;
+        max = 0;
+        for(i = 0; i < RANGE; i++) {
+        	if(p[i] < min) {
+        		min = p[i];
+        	} else if(p[i] > max) {
+        		max = p[i];
+        	}
+        }
+        printf("\033[1;35m");
+        printf("Max : %d Min : %d\n", max, min);
+        printf("\033[0m");
 
-		/*calcul de l'espérance :*/
-		int temp, moy, esp;
-		temp = 0;
+		/* calcul de la moyenne et de l'espérance */
+		long long unsigned int nbVal, moy, esp, temp;
+		nbVal = 0;
 		moy = 0;
 		esp = 0;
-		for (int i = 0; i < RANGE; i++) {
-			temp += p[i];
+		temp = 0;
+		for (i = 0; i < RANGE; i++) {
+			nbVal += p[i];
 		}
 		printf("\033[1;32m");
-		printf("Nombre de valeurs : %d\n", temp);
-		printf("\033[0m");
-		moy = temp / RANGE;
-		printf("\033[1;33m");
-		printf("Moyenne = %d\n", moy);
+		printf("Nombre de valeurs : %lld\n", nbVal);
 		printf("\033[0m");
 
-		temp = 0;
-		for (int i = 0; i < RANGE; i++) {
+		moy = nbVal / RANGE;
+
+		printf("\033[1;33m");
+		printf("Moyenne = %lld\n", moy);
+		printf("\033[0m");
+
+		for (i = 0; i < RANGE; i++) {
 			temp += (p[i] - moy) * (p[i] - moy); 
 		}
-		//printf("temp = %d\n", temp);
 		esp = temp / RANGE;
+
 		printf("\033[1;36m");
-		printf("Espérance = %d\n", esp);
+		printf("Espérance = %lld\n", esp);
 		printf("\033[0m");
 
 
-        /* shared memory detach */
-        shmdt (p);
+        /* détachement shared memory */
+        shmdt  (p);
         shmctl (shmid, IPC_RMID, 0);
 
         /* cleanup semaphores */
         sem_unlink ("pSem");   
         sem_close(sem);  
-        /* unlink prevents the semaphore existing forever */
-        /* if a crash occurs during the execution         */
+        /* unlink evite que le semaphore exit en boucle */
+        /* Si un crash arrive à l'execution             */
         exit (0);
     }
 
-    /******************************************************/
-    /******************   CHILD PROCESS   *****************/
-    /******************************************************/
-    else{
-        srand(time(NULL));
+    /*******************************************************/
+    /******************   PROCESSUS FILS   *****************/
+    /*******************************************************/
+    else
+    {
+    	int pid = i;
+        srand((unsigned) time(NULL) * getpid());
         int valeurs[RANGE];
-        for(int i = 0; i < RANGE; i++) {
+        for(i = 0; i < RANGE; i++) {
 			valeurs[i] = (rand() % RANGE);
-			//printf("Valeur random %d : %d\n", i, valeurs[i]);
 		}
-        sem_wait (sem);           /* P operation */
-        printf ("  Processus(%d) dans la section critique.\n", i);
-        for(int i = 0; i < RANGE; i++) {
-        	p[(int)valeurs[i]]++;
+        sem_wait (sem);           /* Verouille le semaphore */
+        printf("\033[1;31m");
+        printf ("  Processus(%d) dans la section critique.\n", pid);
+        printf("\033[0m");
+        for(i = 0; i < RANGE; i++) {
+        	p[(int)valeurs[i]]++; /*On incrémente le tableau partagé a chaque occurence d'une valeur */
         }
-        for(int i = 0; i < RANGE; i++) {
-        	printf("Nombre d'occurence de %d : %d\n", i, p[i]);
-        }
-        sem_post (sem);           /* V operation */
-        printf("  Processus %d fini\n", i);
+        sem_post (sem);           /* Libère le semaphore */
+        printf("\033[1;31m");
+        printf("  Processus %d fini\n", pid);
+        printf("\033[0m");
         exit (0);
     }
 }

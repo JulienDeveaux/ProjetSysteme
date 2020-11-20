@@ -1,5 +1,5 @@
 CC=gcc
-CXXFLAGS=-Wall -O0
+CXXFLAGS=-Wall -O3
 LDFLAGS=-pthread
 
 start: start.o
